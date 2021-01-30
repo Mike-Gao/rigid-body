@@ -1,6 +1,8 @@
 package comp559.lcp;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import javax.swing.JPanel;
@@ -58,9 +60,16 @@ public class CollisionProcessor {
 
             double bounce = restitution.getValue();
             double mu = friction.getValue();
-            // TODO: Compute velocity update with iterative solve of contact constraint matrix.
+            // TODO: Objective 3 - Compute velocity update with iterative solve of contact constraint matrix.
+            int bodyNum = bodies.size();
+            int contactNum = contacts.size();
+            for (int iter = 0; iter < iterations.getValue(); iter++) {
+                // TODO: Objective 4 - Optimization
+                if (useShuffle.getValue()) Collections.shuffle(contacts);
+                for (Contact cnct : contacts) {
 
-            
+                }
+            }
             collisionSolveTime = (System.nanoTime() - now) * 1e-9;
         }
     }
@@ -84,7 +93,7 @@ public class CollisionProcessor {
     
     /**
      * Checks for collision between boundary blocks on two rigid bodies.
-     * TODO: This needs to be improved as the n-squared block test is too slow!
+     * TODO: Objective 2 - This needs to be improved as the n-squared block test is too slow!
      * @param body1
      * @param body2
      */
@@ -96,7 +105,7 @@ public class CollisionProcessor {
                 }
             }
         } else {
-            // TODO: implement code to use hierarchical collision detection on body pairs
+            // TODO: Objective 2 - Implement code to use hierarchical collision detection on body pairs
             BVNode bvn1 = body1.root;
             BVNode bvn2 = body2.root;
             bvn1.boundingDisc.updatecW();
@@ -286,7 +295,10 @@ public class CollisionProcessor {
     
     /** Flag for enabling the use of hierarchical collision detection for body pairs */
     private BooleanParameter useBVTree = new BooleanParameter( "use BVTree", false );
-    
+
+    /** Flag for enabling randomization */
+    private BooleanParameter useShuffle = new BooleanParameter("use Shuffle", false);
+
     /**
      * @return controls for the collision processor
      */
@@ -294,6 +306,7 @@ public class CollisionProcessor {
         VerticalFlowPanel vfp = new VerticalFlowPanel();
         vfp.setBorder( new TitledBorder("Collision Processing Controls") );
         vfp.add( useBVTree.getControls() );
+        vfp.add( useShuffle.getControls());
         vfp.add( doLCP.getControls() );
         vfp.add( iterations.getSliderControls() );
         vfp.add( restitution.getSliderControls(false) );

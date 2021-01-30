@@ -3,6 +3,8 @@ package comp559.lcp;
 import com.jogamp.opengl.GL;
 import com.jogamp.opengl.GL2;
 import com.jogamp.opengl.GLAutoDrawable;
+
+import javax.vecmath.GMatrix;
 import javax.vecmath.Point2d;
 import javax.vecmath.Vector2d;
 
@@ -29,6 +31,8 @@ public class Contact {
     
     /** Position of contact point in world coordinates */
     Point2d contactW = new Point2d();
+
+    GMatrix jacobian = new GMatrix(2, 6);
     
     /**
      * Creates a new contact, and assigns it an index
@@ -43,8 +47,15 @@ public class Contact {
         this.contactW.set( contactW );
         this.normal.set( normal );        
         index = nextContactIndex++;        
-        // TODO: you may want to add code here to compute and store the contact Jacobian
+        // TODO: Objective 3 - Compute and store the contact Jacobian
+        Vector2d body1ToContact = new Vector2d(contactW.x - body1.x.x, contactW.y - body1.x.y);
+        Vector2d body2ToContact = new Vector2d( contactW.x - body2.x.x, contactW.y - body2.x.y);
 
+        Vector2d tangent = new Vector2d(-normal.y, normal.x);
+        jacobian.setRow(0, new double[] { -normal.x, -normal.y, body1ToContact.y * normal.x - body1ToContact.x * normal.y,
+                                            normal.x, normal.y, body2ToContact.x * normal.y - body2ToContact.y * normal.x});
+        jacobian.setRow(1, new double[] { -tangent.x, -tangent.y, body1ToContact.y * tangent.x - body1ToContact.x * tangent.y,
+                                            tangent.x, tangent.y, body2ToContact.x * tangent.y - body2ToContact.y * tangent.x});
     }
     
     /**
