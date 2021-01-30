@@ -44,6 +44,7 @@ public class Contact {
         this.normal.set( normal );        
         index = nextContactIndex++;        
         // TODO: you may want to add code here to compute and store the contact Jacobian
+
     }
     
     /**

@@ -97,10 +97,80 @@ public class CollisionProcessor {
             }
         } else {
             // TODO: implement code to use hierarchical collision detection on body pairs
+            BVNode bvn1 = body1.root;
+            BVNode bvn2 = body2.root;
+            bvn1.boundingDisc.updatecW();
+            bvn2.boundingDisc.updatecW();
 
+            if (bvn1.boundingDisc.intersects(bvn2.boundingDisc)) {
+                // we traverse the tree here
+                traverseBVH(body1, bvn1, body2, bvn2);
+            }
         }
     }
-    
+
+    private void updateVisitID(BVNode in, int id){
+        if (in.visitID != id) {
+            in.boundingDisc.updatecW();
+            in.visitID = id;
+        }
+    }
+
+    private void traverseBVH(RigidBody rb1, BVNode bvn1, RigidBody rb2, BVNode bvn2){
+        if (bvn1.isLeaf() && bvn2.isLeaf()) {
+            processCollision(rb1, bvn1.leafBlock, rb2, bvn2.leafBlock);
+        } else if (bvn1.isLeaf() && !bvn2.isLeaf()) {
+            BVNode left = bvn2.child1;
+            BVNode right = bvn2.child2;
+            updateVisitID(left, this.visitID);
+            updateVisitID(right, this.visitID);
+            if (bvn1.boundingDisc.intersects(left.boundingDisc)) {
+                traverseBVH(rb1, bvn1, rb2, left);
+            }
+            if (bvn1.boundingDisc.intersects(right.boundingDisc)) {
+                traverseBVH(rb1, bvn1, rb2, right);
+            }
+        } else if (!bvn1.isLeaf() && bvn2.isLeaf()) {
+            BVNode left = bvn1.child1;
+            BVNode right = bvn1.child2;
+            updateVisitID(left, this.visitID);
+            updateVisitID(right, this.visitID);
+            if (bvn2.boundingDisc.intersects(left.boundingDisc)) {
+                traverseBVH(rb1, left, rb2, bvn2);
+            }
+            if (bvn2.boundingDisc.intersects(right.boundingDisc)) {
+                traverseBVH(rb1, right, rb2, bvn2);
+            }
+        } else {
+            BVNode left, right;
+            if (bvn1.boundingDisc.r > bvn2.boundingDisc.r) {
+                left = bvn1.child1;
+                right = bvn1.child2;
+                updateVisitID(left, this.visitID);
+                updateVisitID(right, this.visitID);
+                if (bvn2.boundingDisc.intersects(left.boundingDisc)) {
+                    traverseBVH(rb1, left, rb2, bvn2);
+                }
+                if (bvn2.boundingDisc.intersects(right.boundingDisc)) {
+                    traverseBVH(rb1, right, rb2, bvn2);
+                }
+            } else {
+                left = bvn2.child1;
+                right = bvn2.child2;
+                updateVisitID(left, this.visitID);
+                updateVisitID(right, this.visitID);
+                if (bvn1.boundingDisc.intersects(left.boundingDisc)) {
+                    traverseBVH(rb1, bvn1, rb2, left);
+                }
+                if (bvn1.boundingDisc.intersects(right.boundingDisc)) {
+                    traverseBVH(rb1, bvn1, rb2, right);
+                }
+            }
+        }
+
+    }
+
+
     /** 
      * The visitID is used to tag boundary volumes that are visited in 
      * a given time step.  Marking boundary volume nodes as visited during

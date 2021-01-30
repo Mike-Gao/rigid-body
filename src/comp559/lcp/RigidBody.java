@@ -170,7 +170,9 @@ public class RigidBody {
     public void applyContactForceW( Point2d contactPointW, Vector2d contactForceW ) {
         force.add( contactForceW );
         // TODO: Compute the torque applied to the body 
-        
+        Vector2d r = new Vector2d(contactPointW.x - this.x.x, contactPointW.y - this.x.y);
+        double tmpT = r.x * contactForceW.y - r.y * contactForceW.x;
+        torque += tmpT;
         
     }
     
@@ -183,7 +185,10 @@ public class RigidBody {
     public void advanceTime( double dt ) {
         if ( !pinned ) {            
             // TODO: use torques to advance the angular state of the rigid body
-            
+
+            omega += jinv * torque * dt;
+            theta += omega * dt;
+
             v.x += 1.0 / massLinear * force.x * dt;
             v.y += 1.0 / massLinear * force.y * dt;
             x.x += v.x * dt;
