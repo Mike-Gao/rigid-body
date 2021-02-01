@@ -57,19 +57,119 @@ public class CollisionProcessor {
                 
         if ( contacts.size() > 0  && doLCP.getValue() ) {
             now = System.nanoTime();
-
             double bounce = restitution.getValue();
             double mu = friction.getValue();
+
             // TODO: Objective 3 - Compute velocity update with iterative solve of contact constraint matrix.
             int bodyNum = bodies.size();
             int contactNum = contacts.size();
+
+            // construct d, the diagonal of A matrix and the b matrix
+            double[] dMat = new double[2 * contactNum];
+            double[] bMat = new double[2 * contactNum];
+            for (Contact cnct : contacts) {
+                // for dmat
+                double a = 0;
+                double b = 0;
+                // ---------------------------------------- //
+                // for bmat
+                double normalConstraint = 0;
+                double frictionConstraint = 0;
+                double restitutionConstraint = 0;
+                double[] u = new double[] {cnct.body1.v.x, cnct.body1.v.y, cnct.body1.omega,
+                        cnct.body2.v.x, cnct.body2.v.y, cnct.body2.omega};
+
+                double[] f = new double[] {cnct.body1.force.x, cnct.body1.force.y, cnct.body1.torque,
+                        cnct.body2.force.x, cnct.body2.force.y, cnct.body2.torque};
+                // ---------------------------------------- //
+                for (int i = 0; i < 6; i++) {
+                    // for dMat
+                    a += cnct.jacobianRowOne[i] * cnct.jacobianRowOne[i] * cnct.massMat[i];
+                    b += cnct.jacobianRowTwo[i] * cnct.jacobianRowTwo[i] * cnct.massMat[i];
+                    // for bMat
+                    restitutionConstraint += cnct.jacobianRowOne[i] * u[i] * restitution.getValue();
+                    normalConstraint += cnct.jacobianRowOne[i] * (u[i] + dt * f[i] * cnct.massMat[i]);
+                    frictionConstraint += cnct.jacobianRowTwo[i] * (u[i] + dt * f[i] * cnct.massMat[i]);
+                }
+                dMat[2 * cnct.index + 0] = a;
+                dMat[2 * cnct.index + 1] = b;
+                bMat[2 * cnct.index + 0] = normalConstraint + restitutionConstraint;
+                bMat[2 * cnct.index + 1] = frictionConstraint;
+
+            }
+
+            double[] bPrimeMat = new double[bMat.length];
+            for (int i = 0; i < bPrimeMat.length; i++) {
+                bPrimeMat[i] = bMat[i] / dMat[i];
+            }
+
+            double[] lambdaI = new double[2 * contactNum];
+            double[] friction = new double[contactNum];
+            double[] deltaV = new double[3 * bodyNum];
+
+            // construct d and b matrix
+
             for (int iter = 0; iter < iterations.getValue(); iter++) {
                 // TODO: Objective 4 - Optimization
                 if (useShuffle.getValue()) Collections.shuffle(contacts);
                 for (Contact cnct : contacts) {
 
+                    double lambdaNormal = lambdaI[2 * cnct.index] - bPrimeMat[2 * cnct.index];
+
+                    for(int i = 0; i < 3; i++) {
+                        lambdaNormal -= cnct.jacobianRowOne[i + 0] / dMat[2 * cnct.index] * deltaV[3 * cnct.body1.index + i];
+                        lambdaNormal -= cnct.jacobianRowOne[i + 3] / dMat[2 * cnct.index] * deltaV[3 * cnct.body2.index + i];
+                    }
+
+                    // make sure lambdaNormal > 0
+                    lambdaNormal = Math.max(0, lambdaNormal);
+
+                    friction[cnct.index] = mu * lambdaNormal;
+
+                    double delta = lambdaNormal - lambdaI[2 * cnct.index];
+
+                    lambdaI[2 * cnct.index] = lambdaNormal;
+
+                    double[] colIOfT = new double[6];
+                    for (int i = 0; i < 6; i++){
+                        colIOfT[i] = cnct.massMat[i] * cnct.jacobianRowOne[i];
+                    }
+
+                    for (int i = 0; i < 3; i++) {
+                        deltaV[3 * cnct.body1.index + i] += colIOfT[i] * delta;
+                        deltaV[3 * cnct.body2.index + i] += colIOfT[i + 3] * delta;
+                    }
+
+                    double lambdaFriction = lambdaI[2 * cnct.index + 1] - bPrimeMat[2 * cnct.index + 1];
+                    for (int i = 0; i < 3; i++) {
+                        lambdaFriction -= deltaV[3 * cnct.body1.index + i] * cnct.jacobianRowTwo[i] / dMat[2 * cnct.index + 1];
+                        lambdaFriction -= deltaV[3 * cnct.body2.index + i] * cnct.jacobianRowTwo[i + 3] / dMat[2 * cnct.index + 1];
+                    }
+
+                    lambdaFriction = Math.max(lambdaFriction, -friction[cnct.index]);
+                    lambdaFriction = Math.min(lambdaFriction, friction[cnct.index]);
+
+                    delta = lambdaFriction - lambdaI[2 * cnct.index + 1];
+                    lambdaI[2 * cnct.index + 1] = lambdaFriction;
+
+                    for (int i = 0; i < colIOfT.length; i++) {
+                        colIOfT[i] = cnct.massMat[i] * cnct.jacobianRowTwo[i];
+                    }
+
+                    for (int i = 0; i < 3; i++) {
+                        deltaV[3 * cnct.body1.index + i] += colIOfT[i] * delta;
+                        deltaV[3 * cnct.body2.index + i] += colIOfT[i + 3] * delta;
+                    }
+
                 }
             }
+
+            for (RigidBody rb : bodies) {
+                rb.v.x += deltaV[3 * rb.index];
+                rb.v.y += deltaV[3 * rb.index + 1];
+                rb.omega += deltaV[3 * rb.index + 2];
+            }
+
             collisionSolveTime = (System.nanoTime() - now) * 1e-9;
         }
     }

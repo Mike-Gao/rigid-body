@@ -72,3 +72,5 @@ fabric.properties
 
 # Libraries
 jars/
+
+*.mp4
