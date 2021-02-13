@@ -1,9 +1,6 @@
 package comp559.lcp;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import javax.swing.JPanel;
 import javax.swing.border.TitledBorder;
@@ -42,6 +39,8 @@ public class CollisionProcessor {
     
     /** keeps track of the time used to solve the LCP based velocity update on the last call */
     double collisionSolveTime = 0;
+
+    public Map<Contact, double[]> pair = new HashMap<>();
     
     /**
      * Processes all collisions 
@@ -57,7 +56,6 @@ public class CollisionProcessor {
                 
         if ( contacts.size() > 0  && doLCP.getValue() ) {
             now = System.nanoTime();
-            double bounce = restitution.getValue();
             double mu = friction.getValue();
 
             // TODO: Objective 3 - Compute velocity update with iterative solve of contact constraint matrix.
@@ -75,7 +73,7 @@ public class CollisionProcessor {
                 // for bmat
                 double normalConstraint = 0;
                 double frictionConstraint = 0;
-                double restitutionConstraint = 0;
+                double restitutionParam = 0;
                 double[] u = new double[] {cnct.body1.v.x, cnct.body1.v.y, cnct.body1.omega,
                         cnct.body2.v.x, cnct.body2.v.y, cnct.body2.omega};
 
@@ -87,13 +85,13 @@ public class CollisionProcessor {
                     a += cnct.jacobianRowOne[i] * cnct.jacobianRowOne[i] * cnct.massMat[i];
                     b += cnct.jacobianRowTwo[i] * cnct.jacobianRowTwo[i] * cnct.massMat[i];
                     // for bMat
-                    restitutionConstraint += cnct.jacobianRowOne[i] * u[i] * restitution.getValue();
+                    restitutionParam += cnct.jacobianRowOne[i] * u[i] * restitution.getValue();
                     normalConstraint += cnct.jacobianRowOne[i] * (u[i] + dt * f[i] * cnct.massMat[i]);
                     frictionConstraint += cnct.jacobianRowTwo[i] * (u[i] + dt * f[i] * cnct.massMat[i]);
                 }
                 dMat[2 * cnct.index + 0] = a;
                 dMat[2 * cnct.index + 1] = b;
-                bMat[2 * cnct.index + 0] = normalConstraint + restitutionConstraint;
+                bMat[2 * cnct.index + 0] = normalConstraint + restitutionParam;
                 bMat[2 * cnct.index + 1] = frictionConstraint;
 
             }
@@ -113,7 +111,13 @@ public class CollisionProcessor {
                 // TODO: Objective 4 - Optimization
                 if (useShuffle.getValue()) Collections.shuffle(contacts);
                 for (Contact cnct : contacts) {
-
+                    // TODO: Objective 5 - Warm Start
+                    if (warmStart.getValue()) {
+                        if(pair.containsKey(cnct)) {
+                            lambdaI[2*cnct.index] = pair.get(cnct)[0];
+                            lambdaI[2*cnct.index] = pair.get(cnct)[1];
+                        }
+                    }
                     double lambdaNormal = lambdaI[2 * cnct.index] - bPrimeMat[2 * cnct.index];
 
                     for(int i = 0; i < 3; i++) {
@@ -168,6 +172,11 @@ public class CollisionProcessor {
                 rb.v.x += deltaV[3 * rb.index];
                 rb.v.y += deltaV[3 * rb.index + 1];
                 rb.omega += deltaV[3 * rb.index + 2];
+            }
+            if (warmStart.getValue()){
+                for(Contact cnct : contacts){
+                    pair.put(cnct, new double[] {lambdaI[2* cnct.index], lambdaI[2* cnct.index +1]});
+                }
             }
 
             collisionSolveTime = (System.nanoTime() - now) * 1e-9;
@@ -399,6 +408,8 @@ public class CollisionProcessor {
     /** Flag for enabling randomization */
     private BooleanParameter useShuffle = new BooleanParameter("use Shuffle", false);
 
+    private BooleanParameter warmStart = new BooleanParameter("use Warm Start", false);
+
     /**
      * @return controls for the collision processor
      */
@@ -408,6 +419,7 @@ public class CollisionProcessor {
         vfp.add( useBVTree.getControls() );
         vfp.add( useShuffle.getControls());
         vfp.add( doLCP.getControls() );
+        vfp.add( warmStart.getControls());
         vfp.add( iterations.getSliderControls() );
         vfp.add( restitution.getSliderControls(false) );
         vfp.add( friction.getSliderControls(false) );
