@@ -114,8 +114,8 @@ public class CollisionProcessor {
                     // TODO: Objective 5 - Warm Start
                     if (warmStart.getValue()) {
                         if(pair.containsKey(cnct)) {
-                            lambdaI[2*cnct.index] = pair.get(cnct)[0];
-                            lambdaI[2*cnct.index] = pair.get(cnct)[1];
+                            lambdaI[2 * cnct.index] = pair.get(cnct)[0];
+                            lambdaI[2 * cnct.index + 1] = pair.get(cnct)[1];
                         }
                     }
                     double lambdaNormal = lambdaI[2 * cnct.index] - bPrimeMat[2 * cnct.index];
