@@ -16,85 +16,77 @@ import javax.vecmath.Vector2d;
  */
 public class MouseSpringForce {
 
-    /**
-     * Stiffness of mouse spring
-     */
-    public DoubleParameter stiffness = new DoubleParameter("mouse stiffness", 10, 1, 1e4);
-    /**
-     * Viscous damping coefficient for the mouse spring
-     */
-    public DoubleParameter damping = new DoubleParameter("mouse spring damping", 0, 0, 100);
-    private RigidBody picked = null;
-    private Point2d grabPointB = new Point2d();
-    private Point2d point;
+  /** Stiffness of mouse spring */
+  public DoubleParameter stiffness = new DoubleParameter("mouse stiffness", 10, 1, 1e4);
+  /** Viscous damping coefficient for the mouse spring */
+  public DoubleParameter damping = new DoubleParameter("mouse spring damping", 0, 0, 100);
 
-    /**
-     * Creates a new mouse spring, where the provided point will be updated with movement of the mouse
-     *
-     * @param point
-     */
-    public MouseSpringForce(Point2d point) {
-        this.point = point;
-    }
+  private RigidBody picked = null;
+  private Point2d grabPointB = new Point2d();
+  private Point2d point;
 
-    /**
-     * Sets the picked body and the point on that body
-     *
-     * @param picked
-     * @param grabPointB
-     */
-    public void setPicked(RigidBody picked, Point2d grabPointB) {
-        this.picked = picked;
-        this.grabPointB.set(grabPointB);
-    }
+  /**
+   * Creates a new mouse spring, where the provided point will be updated with movement of the mouse
+   *
+   * @param point
+   */
+  public MouseSpringForce(Point2d point) {
+    this.point = point;
+  }
 
-    /**
-     * Gets the current picked body
-     *
-     * @return
-     */
-    public RigidBody getPicked() {
-        return picked;
-    }
+  /**
+   * Sets the picked body and the point on that body
+   *
+   * @param picked
+   * @param grabPointB
+   */
+  public void setPicked(RigidBody picked, Point2d grabPointB) {
+    this.picked = picked;
+    this.grabPointB.set(grabPointB);
+  }
 
-    /**
-     * Applies the mouse spring force to the picked rigid body, or nohting if no body selected
-     */
-    public void apply() {
-        if (picked == null) return;
+  /**
+   * Gets the current picked body
+   *
+   * @return
+   */
+  public RigidBody getPicked() {
+    return picked;
+  }
 
-        Point2d grabPointW = new Point2d();
-        Vector2d grabPointV = new Vector2d();
-        picked.transformB2W.transform(grabPointB, grabPointW);
-        double distance = grabPointW.distance(point);
-        double k = stiffness.getValue();
-        double c = damping.getValue();
+  /** Applies the mouse spring force to the picked rigid body, or nohting if no body selected */
+  public void apply() {
+    if (picked == null) return;
 
-        Vector2d force = new Vector2d();
-        Vector2d direction = new Vector2d();
-        direction.sub(point, grabPointW);
-        if (direction.lengthSquared() < 1e-3) return;
-        direction.normalize();
-        force.scale(distance * k, direction);
-        picked.applyContactForceW(grabPointW, force);
+    Point2d grabPointW = new Point2d();
+    Vector2d grabPointV = new Vector2d();
+    picked.transformB2W.transform(grabPointB, grabPointW);
+    double distance = grabPointW.distance(point);
+    double k = stiffness.getValue();
+    double c = damping.getValue();
 
-        // spring damping forces
-        picked.getSpatialVelocity(grabPointW, grabPointV);
-        force.scale(-grabPointV.dot(direction) * c, direction);
-        picked.applyContactForceW(grabPointW, force);
-    }
+    Vector2d force = new Vector2d();
+    Vector2d direction = new Vector2d();
+    direction.sub(point, grabPointW);
+    if (direction.lengthSquared() < 1e-3) return;
+    direction.normalize();
+    force.scale(distance * k, direction);
+    picked.applyContactForceW(grabPointW, force);
 
-    /**
-     * @return controls for the collision processor
-     */
-    public JPanel getControls() {
-        VerticalFlowPanel vfp = new VerticalFlowPanel();
-        vfp.setBorder(new TitledBorder("Mouse Spring Controls"));
-        vfp.add(stiffness.getSliderControls(true));
-        vfp.add(damping.getSliderControls(false));
-        CollapsiblePanel cp = new CollapsiblePanel(vfp.getPanel());
-        cp.collapse();
-        return cp;
-    }
+    // spring damping forces
+    picked.getSpatialVelocity(grabPointW, grabPointV);
+    force.scale(-grabPointV.dot(direction) * c, direction);
+    picked.applyContactForceW(grabPointW, force);
+  }
 
+  /** @return controls for the collision processor */
+  public JPanel getControls() {
+    VerticalFlowPanel vfp = new VerticalFlowPanel();
+    vfp.setBorder(new TitledBorder("Mouse Spring Controls"));
+    vfp.add(stiffness.getSliderControls(true));
+    vfp.add(damping.getSliderControls(false));
+    CollapsiblePanel cp = new CollapsiblePanel(vfp.getPanel());
+    cp.collapse();
+    return cp;
+  }
 }
