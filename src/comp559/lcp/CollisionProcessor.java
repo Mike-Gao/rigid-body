@@ -110,6 +110,9 @@ public class CollisionProcessor {
       // matrix.
       int bodyNum = bodies.size();
       int contactNum = contacts.size();
+      double[] lambdaI = new double[2 * contactNum];
+      double[] friction = new double[contactNum];
+      double[] deltaV = new double[3 * bodyNum];
 
       // construct d, the diagonal of A matrix and the b matrix
       double[] dMat = new double[2 * contactNum];
@@ -156,6 +159,18 @@ public class CollisionProcessor {
         dMat[2 * cnct.index + 1] = b;
         bMat[2 * cnct.index + 0] = normalConstraint + restitutionParam;
         bMat[2 * cnct.index + 1] = frictionConstraint;
+
+        if (warmStart.getValue()) {
+          if (pair.containsKey(cnct)) {
+            double[] tmp = pair.remove(cnct);
+            lambdaI[2 * cnct.index] = tmp[0];
+            lambdaI[2 * cnct.index + 1] = tmp[1];
+            for(int i = 0; i < 3; i++) {
+              deltaV[cnct.body1.index * 3 + i] = tmp[i + 2];
+              deltaV[cnct.body2.index * 3 + i] = tmp[i + 5];
+            }
+          }
+        }
       }
 
       double[] bPrimeMat = new double[bMat.length];
@@ -163,23 +178,15 @@ public class CollisionProcessor {
         bPrimeMat[i] = bMat[i] / dMat[i];
       }
 
-      double[] lambdaI = new double[2 * contactNum];
-      double[] friction = new double[contactNum];
-      double[] deltaV = new double[3 * bodyNum];
-
       // construct d and b matrix
 
       for (int iter = 0; iter < iterations.getValue(); iter++) {
         // TODO: Objective 4 - Optimization
-        if (useShuffle.getValue()) Collections.shuffle(contacts);
+        if (useShuffle.getValue()) {
+          Collections.shuffle(contacts);
+        }
         for (Contact cnct : contacts) {
           // TODO: Objective 5 - Warm Start
-          if (warmStart.getValue()) {
-            if (pair.containsKey(cnct)) {
-              lambdaI[2 * cnct.index] = pair.get(cnct)[0];
-              lambdaI[2 * cnct.index + 1] = pair.get(cnct)[1];
-            }
-          }
           double lambdaNormal = lambdaI[2 * cnct.index] - bPrimeMat[2 * cnct.index];
 
           for (int i = 0; i < 3; i++) {
@@ -246,9 +253,17 @@ public class CollisionProcessor {
         rb.v.y += deltaV[3 * rb.index + 1];
         rb.omega += deltaV[3 * rb.index + 2];
       }
+
       if (warmStart.getValue()) {
-        for (Contact cnct : contacts) {
-          pair.put(cnct, new double[] {lambdaI[2 * cnct.index], lambdaI[2 * cnct.index + 1]});
+        for (Contact cnct: contacts){
+          double[] arr = new double[8];
+          arr[0] = lambdaI[2 * cnct.index];
+          arr[1] = lambdaI[2 * cnct.index + 1];
+          for(int i = 2; i < 8; i++) {
+            int idx = i - 2;
+            arr[i] = cnct.massMat[idx] * (cnct.jacobianRowOne[idx] * arr[0] + cnct.jacobianRowTwo[idx] * arr[1]);
+          }
+          pair.put(cnct, arr);
         }
       }
 

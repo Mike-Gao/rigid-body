@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable;
 
 import javax.vecmath.Point2d;
 import javax.vecmath.Vector2d;
+import java.util.Objects;
 
 /**
  * Implementation of a contact constraint.
@@ -23,10 +24,10 @@ public class Contact {
   int index;
 
   /** First RigidBody in contact */
-  RigidBody body1;
+  final RigidBody body1;
 
   /** Second RigidBody in contact */
-  RigidBody body2;
+  final RigidBody body2;
 
   /** Contact normal in world coordinates */
   Vector2d normal = new Vector2d();
@@ -109,5 +110,18 @@ public class Contact {
       gl.glVertex2d(body2.x.x, body2.x.y);
       gl.glEnd();
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Contact contact = (Contact) o;
+    return (body1.equals(contact.body1) && body2.equals(contact.body2)) || (body2.equals(contact.body1) && body1.equals(contact.body1));
+  }
+
+  @Override
+  public int hashCode() {
+    return body1.hashCode() + body2.hashCode();
   }
 }
