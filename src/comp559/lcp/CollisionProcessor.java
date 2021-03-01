@@ -255,6 +255,7 @@ public class CollisionProcessor {
       }
 
       if (warmStart.getValue()) {
+        pair.clear();
         for (Contact cnct: contacts){
           double[] arr = new double[8];
           arr[0] = lambdaI[2 * cnct.index];
